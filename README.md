@@ -51,21 +51,18 @@ Sheets로 내보내기
 
 ---
 
-## 📂 Project Structure
+## 🛠️ 컴포넌트 상세 설명 (Component Descriptions)
 
-Bash
-
-`├── RTL/                  # Target Device Under Test (DUT)
-├── TB/
-│   ├── uart_interface.sv # Interface signals
-│   ├── uart_trans.sv     # Transaction class with constraints
-│   ├── uart_gen.sv       # Generator
-│   ├── uart_drv.sv       # Driver (Serial driving logic)
-│   ├── uart_mon.sv       # Monitor
-│   ├── uart_scb.sv       # Scoreboard & Checker
-│   ├── uart_env.sv       # Environment wrapper
-│   └── tb_top.sv         # Top module & Test execution
-└── README.md`
+| 컴포넌트 (Component) | 파일 경로 (File Path) | 기능 및 역할 (Function) |
+| :--- | :--- | :--- |
+| **Interface** | `TB/uart_interface.sv` | 적절한 모드포트(Modport)를 사용하여 DUT(검증 대상 유닛)와 테스트벤치를 연결하는 물리적 신호들을 정의합니다. |
+| **Transaction** | `TB/uart_trans.sv` | 패킷 데이터(데이터, 패리티, 정지 비트)를 무작위화(Randomization) 제약 조건과 함께 캡슐화(Encapsulate)합니다. |
+| **Generator** | `TB/uart_gen.sv` | 무작위(Random) 또는 지시된(Directed) 트랜잭션 객체를 생성하고, 이를 메일박스(Mailbox)를 통해 전송합니다. |
+| **Driver** | `TB/uart_drv.sv` | 트랜잭션 데이터를 풀어(Unpack) UART 프로토콜의 규칙과 타이밍에 맞게 직렬 하드웨어 핀(Pin)에 신호를 인가(Drive)합니다. |
+| **Monitor** | `TB/uart_mon.sv` | 내부 및 외부의 물리적 신호를 관찰(Sample)하여 추상화된 트랜잭션 형태로 재구성한 뒤, 스코어보드로 전달합니다. |
+| **Scoreboard** | `TB/uart_scb.sv` | 참조 모델(Reference Model)을 포함하여 예상되는 결과를 미리 예측하고, 실제 동작 결과와 비교하여 데이터 무결성을 검증(Check)합니다. |
+| **Environment** | `TB/uart_env.sv` | 검증에 필요한 모든 객체 지향 하위 컴포넌트들을 인스턴스화(Instantiate)하고 하나의 구조(Topology)로 연결합니다. |
+| **Top Module** | `TB/tb_top.sv` | 클럭(Clock)을 생성하고, DUT를 인스턴스화하며, 전체 테스트 시뮬레이션을 시작(Trigger)하는 정적 하드웨어(Static Hardware) 계층입니다. |
 
 ---
 
