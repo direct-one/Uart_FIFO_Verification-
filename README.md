@@ -72,10 +72,15 @@ graph TD
 
 <img width="828" height="391" alt="image" src="https://github.com/user-attachments/assets/ba2a82b4-0759-431a-8f5e-973d1043ee8c" />
 
+
 **FIFO의 동작 시뮬레이션**
 - FIFO의 RX_wdata == 6c -> rdata의 값으로 전달
 - re(read_enable) 신호도 전달
 <img width="1390" height="299" alt="image" src="https://github.com/user-attachments/assets/c74252bf-ab97-4789-bffa-cd4ed89deb55" />
+
+## Log Data(Scoreboard)
+<img width="1124" height="385" alt="image" src="https://github.com/user-attachments/assets/900c2efc-edf8-4b34-84e3-7f70179d5f3c" />
+
 
 
 
