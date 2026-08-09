@@ -1,79 +1,87 @@
-# UART_Verification
+# UART FIFO Verification & ASCII Command Decoder
 
-# 🕒 UART-Controlled Digital Clock Verification
-
-**A Layered SystemVerilog Testbench for Robust Serial Communication Verification**
-
-## 📖 Overview
-
-This repository features a professional, layered SystemVerilog testbench architecture. It is specifically designed to verify a **UART Receiver** integrated with a **FIFO buffer** and a **Command Decoder**.
-
-The framework validates data integrity and the accuracy of command decoding for serial communication intended to control external logic, such as:
-
-- **Digital Clock/Stopwatch Settings**
-- **Sequential Command Decoding**
-- **FIFO Buffer Management**
+이 저장소는 **UART 통신(RX/TX)**, **데이터 저장을 위한 FIFO**, 그리고 수신된 데이터를 제어 신호로 변환하는 **ASCII Decoder**를 구현한 SystemVerilog 프로젝트입니다. 또한, 객체 지향 프로그래밍(OOP) 기반의 계층화된 테스트벤치(Layered Testbench)를 통해 데이터 무결성과 커맨드 디코딩의 신뢰성을 검증합니다.
 
 ---
 
-## 🏗️ Testbench Architecture
+## 🏗️ RTL 아키텍처 및 모듈 설명
 
-The testbench follows a modern, Object-Oriented (OO) verification methodology using class-based components for scalability and reuse.
+전체 시스템은 `uart_sv.sv`를 최상위(Top) 모듈로 하여 다음과 같은 하위 컴포넌트로 구성됩니다.
 
-### 🧬 Block Diagram Concept
+### 1. UART 송수신부 (`uart_rx`, `uart_tx`, `b_tick`)
+- **`b_tick`**: 지정된 Baud Rate에 맞춰 UART 통신을 동기화하기 위한 Tick 신호를 생성합니다.
+- **`uart_rx`**: 직렬 데이터(`rx`)를 수신하여 8-bit 병렬 데이터로 변환합니다. `START` 비트 감지 후 `DATA` 비트를 수집하고 `STOP` 비트를 검증합니다.
+- **`uart_tx`**: 송신용 8-bit 병렬 데이터를 받아 직렬 데이터(`tx`)로 변환해 외부로 전송합니다.
 
-### 🧩 Component Details
+### 2. 동기식 FIFO (`fifo`, `register_file`, `control_unit`)
+- 데이터를 안정적으로 버퍼링하기 위해 RX FIFO(깊이: 8)와 TX FIFO(깊이: 16)가 사용됩니다.
+- 읽기/쓰기 포인터(Pointer) 기반의 제어 유닛(`control_unit`)을 통해 `full` 및 `empty` 상태를 관리하여 데이터 유실을 방지합니다.
 
-| Component | Description |
-| --- | --- |
-| **Interface (`uart_if`)** | Bundles clock, reset, UART serial lines, FIFO control, and decoded clock signals. |
-| **Transaction** | Defines the data object. Randomized `uart_rx` data is restricted to four ASCII commands:
-• `'r'`: Run/Stop
-• `'u'`: Hour Up
-• `'l'`: Minute Up
-• `'d'`: Second Up |
-| **Generator** | Creates randomized transaction objects and sends them to the Driver via a **Mailbox**. |
-| **Driver** | Simulates the physical UART protocol (Start + 8-bit Data + Stop) synchronized to the `b_tick`. |
-| **Monitor** | Passively captures data on `we` (write enable) and `rx_fifo_pop` (read) assertions. |
-| **Scoreboard** | **The Checker:** Compares FIFO output against expected values and verifies the ASCII decoder's output signals (e.g., `o_ascii_hour_up`). |
-| **Environment** | The container class that instantiates and connects all verification components. |
+### 3. ASCII 명령어 디코더 (`ascii_decoder`)
+- RX FIFO에서 읽어온 8-bit ASCII 데이터를 기반으로 특정 하드웨어 제어 신호를 생성합니다.
+- **디코딩 매핑**:
+  - `8'h72` ('r'): Run / Stop (`o_ascii_run_stop`)
+  - `8'h75` ('u'): Hour Up (`o_ascii_hour_up`)
+  - `8'h6C` ('l'): Minute Up (`o_ascii_min_up`)
+  - `8'h64` ('d'): Second Up (`o_ascii_sec_up`)
+  - `8'h30` ('0'): Mode Switch (Toggle)
+  - `8'h31` ('1'): Stop Watch (Toggle)
+  - `8'h32` ('2'): Time Switch (Toggle)
 
-Sheets로 내보내기
-
----
-
-## 🚀 Key Verification Features
-
-- **Constrained Randomization:** Ensures only valid ASCII commands ('r', 'u', 'l', 'd') are generated for focused testing.
-- **Protocol Accuracy:** Faithful simulation of bit-timing and UART framing.
-- **Data Integrity:** Queue-based scoreboard ensures FIFO ordering and data consistency.
-- **Command Decoding:** Dedicated checks for the transition from raw ASCII to functional control signals.
-
----
-
-## 🛠️ 컴포넌트 상세 설명 (Component Descriptions)
-
-| 컴포넌트 (Component) | 파일 경로 (File Path) | 기능 및 역할 (Function) |
-| :--- | :--- | :--- |
-| **Interface** | `TB/uart_interface.sv` | 적절한 모드포트(Modport)를 사용하여 DUT(검증 대상 유닛)와 테스트벤치를 연결하는 물리적 신호들을 정의합니다. |
-| **Transaction** | `TB/uart_trans.sv` | 패킷 데이터(데이터, 패리티, 정지 비트)를 무작위화(Randomization) 제약 조건과 함께 캡슐화(Encapsulate)합니다. |
-| **Generator** | `TB/uart_gen.sv` | 무작위(Random) 또는 지시된(Directed) 트랜잭션 객체를 생성하고, 이를 메일박스(Mailbox)를 통해 전송합니다. |
-| **Driver** | `TB/uart_drv.sv` | 트랜잭션 데이터를 풀어(Unpack) UART 프로토콜의 규칙과 타이밍에 맞게 직렬 하드웨어 핀(Pin)에 신호를 인가(Drive)합니다. |
-| **Monitor** | `TB/uart_mon.sv` | 내부 및 외부의 물리적 신호를 관찰(Sample)하여 추상화된 트랜잭션 형태로 재구성한 뒤, 스코어보드로 전달합니다. |
-| **Scoreboard** | `TB/uart_scb.sv` | 참조 모델(Reference Model)을 포함하여 예상되는 결과를 미리 예측하고, 실제 동작 결과와 비교하여 데이터 무결성을 검증(Check)합니다. |
-| **Environment** | `TB/uart_env.sv` | 검증에 필요한 모든 객체 지향 하위 컴포넌트들을 인스턴스화(Instantiate)하고 하나의 구조(Topology)로 연결합니다. |
-| **Top Module** | `TB/tb_top.sv` | 클럭(Clock)을 생성하고, DUT를 인스턴스화하며, 전체 테스트 시뮬레이션을 시작(Trigger)하는 정적 하드웨어(Static Hardware) 계층입니다. |
-
----
-
-## 🛠️ How to Run
-
-1. Clone the repository.
-2. Compile using your preferred simulator (e.g., Questa, Vivado, or VCS).
-3. Run `tb_top.sv` to initiate the layered simulation.
+### 📊 System Block Diagram
+```mermaid
+graph TD
+    subgraph uart_sv [UART Top Module]
+        B_TICK[Baud Rate Generator\nb_tick]
+        
+        subgraph Receiver Path
+            RX[UART RX] -->|w_rx_data| RX_FIFO[RX FIFO\nDepth: 8]
+            RX_FIFO -->|rx_fifo_out| DEC[ASCII Decoder]
+        end
+        
+        subgraph Transmitter Path
+            TX_FIFO[TX FIFO\nDepth: 16] -->|w_tx_data_fifo| TX[UART TX]
+        end
+        
+        B_TICK -.-> RX
+        B_TICK -.-> TX
+        
+        RX_IN((uart_rx)) --> RX
+        TX --> TX_OUT((uart_tx))
+        
+        DEC -->|Control Signals| CTRL_OUT((run/stop, hr_up, min_up...))
+    end
+```
 
 ---
 
-**Author:** [Your Name/GitHub Handle]
+## 🧪 검증 환경 (Layered Testbench)
 
-**Project Goal:** To demonstrate high-reliability verification of serial-to-parallel command decoding logic.
+`tb_uart_veri.sv` 파일에 구현된 이 테스트벤치는 UVM 구조에서 영감을 받은 객체 지향 방식(OOP)으로 설계되었습니다.
+
+- **Transaction (`uart_trans`)**: 검증할 데이터 구조를 정의하며 무작위(Random) 제약 조건을 통해 유효한 ASCII 값만 생성하도록 유도합니다.
+- **Generator (`uart_gen`)**: 설정된 횟수만큼 Transaction을 생성하여 Mailbox를 통해 Driver로 전달합니다.
+- **Driver (`uart_drv`)**: Transaction 데이터를 실제 물리적인 UART 프로토콜 타이밍(Start, Data, Stop)에 맞춰 Interface에 인가합니다.
+- **Monitor (`uart_mon`)**: DUT의 입력/출력 핀 상태를 관찰하여 트랜잭션 형태로 캡슐화한 뒤 Scoreboard로 전달합니다.
+- **Scoreboard (`uart_scb`)**: 예상 모델(Reference Model)을 통해 정답을 미리 예측하고, Monitor로부터 받은 실제 동작 결과값(디코딩된 제어 신호 등)과 비교하여 오류를 검출합니다.
+- **Environment (`uart_env`)**: 위 모든 검증 컴포넌트들을 인스턴스화하고 메일박스와 인터페이스를 연결합니다.
+
+---
+## Simulation 
+<img width="493" height="286" alt="image" src="https://github.com/user-attachments/assets/a4e8e847-afe9-40eb-8c52-0d8b64dfb8b7" />
+
+<img width="828" height="391" alt="image" src="https://github.com/user-attachments/assets/ba2a82b4-0759-431a-8f5e-973d1043ee8c" />
+
+**FIFO의 동작 시뮬레이션**
+- FIFO의 RX_wdata == 6c -> rdata의 값으로 전달
+- re(read_enable) 신호도 전달
+<img width="1390" height="299" alt="image" src="https://github.com/user-attachments/assets/c74252bf-ab97-4789-bffa-cd4ed89deb55" />
+
+
+
+## 🚀 실행 방법 (How to Run)
+
+1. 저장소를 클론(Clone)합니다.
+2. Vivado, Questa, VCS 등 SystemVerilog를 지원하는 시뮬레이터를 엽니다.
+3. `uart_FIFO_Ascii_Decoder.srcs/RTL/` 내의 설계 파일들과 `tb/tb_uart_veri.sv` 파일 등을 컴파일합니다.
+4. 최상위 테스트벤치인 `tb_top` 모듈을 시뮬레이션하여 검증 결과를 확인합니다.
